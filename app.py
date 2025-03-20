@@ -126,70 +126,70 @@ def predict():
                 "Strong stems.",
                 "Normal growth patterns."
             ],
-            "Tomato_Bacterial_spot": [
+            "Tomato___Bacterial_spot": [
                 "Dark, water-soaked lesions on leaves.",
                 "Yellowing of leaf edges.",
                 "Small, dark spots on fruits.",
                 "Leaf curling and wilting.",
                 "Reduced fruit quality."
             ],
-            "Tomato_Early_blight": [
+            "Tomato___Early_blight": [
                 "Dark, concentric rings on leaves.",
                 "Yellowing and dropping of lower leaves.",
                 "Reduced fruit yield.",
                 "Dark lesions on stems.",
                 "Stunted plant growth."
             ],
-            "Tomato_Late_blight": [
+            "Tomato___Late_blight": [
                 "Large, irregularly shaped water-soaked spots.",
                 "White mold on the underside of leaves.",
                 "Brown lesions on stems.",
                 "Rapid wilting of plants.",
                 "Tubers rot in the ground."
             ],
-            "Tomato_Leaf_Mold": [
+            "Tomato___Leaf_Mold": [
                 "Yellowing of leaves.",
                 "Fuzzy greenish-gray mold on the underside.",
                 "Leaf curling.",
                 "Defoliation.",
                 "Reduced fruit quality."
             ],
-            "Tomato_Septoria_leaf_spot": [
+            "Tomato___Septoria_leaf_spot": [
                 "Small, round spots with dark borders.",
                 "Yellowing leaves.",
                 "Defoliation.",
                 "Reduced yield.",
                 "Dark, sunken spots on stems."
             ],
-            "Tomato_Spider_mites_Two_spotted_spider_mite": [
+            "Tomato___Spider_mites Two-spotted_spider_mite": [
                 "Fine webbing on leaves.",
                 "Yellowing and stippling of leaves.",
                 "Leaf drop.",
                 "Stunted growth.",
                 "Brown, crispy leaves."
             ],
-            "Tomato__Target_Spot": [
+            "Tomato___Target_Spot": [
                 "Dark, concentric ring spots on leaves.",
                 "Leaf drop.",
                 "Reduced yield.",
                 "Spots may appear on fruits.",
                 "Stunted growth."
             ],
-            "Tomato__Tomato_YellowLeaf__Curl_Virus": [
+            "Tomato___Tomato_Yellow_Leaf_Curl_Virus": [
                 "Yellowing of leaves.",
                 "Curling and distortion of leaves.",
                 "Stunted growth.",
                 "Reduced fruit set.",
                 "Plant wilting."
             ],
-            "Tomato__Tomato_mosaic_virus": [
+            "Tomato___Tomato_mosaic_virus": [
                 "Mosaic patterns on leaves.",
                 "Stunted growth.",
                 "Leaf curling.",
                 "Deformed fruits.",
                 "Reduced yield."
             ],
-            "Tomato_healthy": [
+            "Tomato___healthy": [
                 "No visible symptoms.",
                 "Healthy green leaves.",
                 "Robust fruit development.",
