@@ -7,7 +7,7 @@ import tensorflow as tf
 from flask_cors import CORS
 
 # Path to your model
-model_path = '/Users/shweta/Crop Disease Recognition/firebase/crop_disease_model_new.tflite'  
+model_path = 'crop_disease_model_new.tflite'  
 
 # Load TensorFlow Lite model
 try:
