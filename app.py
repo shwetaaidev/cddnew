@@ -5,30 +5,44 @@ import numpy as np
 import json
 import tensorflow as tf
 from flask_cors import CORS
+import logging
+import cv2
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Path to your model
-model_path = 'crop_disease_model_new.tflite'  
+model_path = '/Users/shweta/CDD/Crop Disease Recognition/extra/crop_disease_model_new.tflite'  
 
-# Load TensorFlow Lite model
+# Initialize interpreter as None
+interpreter = None
+class_labels = {}
+
+# Try to load model and class indices
 try:
+    # Check if model file exists
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found at: {model_path}")
+    
+    # Load TensorFlow Lite model
     interpreter = tf.lite.Interpreter(model_path=model_path)
     interpreter.allocate_tensors()
-except Exception as e:
-    print(f"Error loading model: {e}")
-    interpreter = None
-
-# Load class indices (ensure this file is uploaded to Render)
-class_indices_file = 'class_indices.json'
-
-if not os.path.exists(class_indices_file):
-    print(f"Class indices file '{class_indices_file}' not found.")
-    class_indices = {}
-else:
+    logger.info("TFLite model loaded successfully")
+    
+    # Load class indices
+    class_indices_file = 'class_indices.json'
+    if not os.path.exists(class_indices_file):
+        raise FileNotFoundError(f"Class indices file not found at: {class_indices_file}")
+    
     with open(class_indices_file, 'r') as f:
         class_indices = json.load(f)
-
-# Reverse class indices to get labels
-class_labels = {v: k for k, v in class_indices.items()}
+        # Reverse class indices to get labels
+        class_labels = {v: k for k, v in class_indices.items()}
+        logger.info(f"Loaded {len(class_labels)} class labels")
+        
+except Exception as e:
+    logger.error(f"Initialization error: {e}")
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -41,19 +55,103 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Define the index route as an API response
+# Define confidence thresholds
+CONFIDENCE_THRESHOLD = 0.7
+HIGH_CONFIDENCE_THRESHOLD = 0.98  # For healthy plants
+
+# Mapping to readable disease names
+READABLE_NAMES = {
+    "Pepper,_bell___Bacterial_spot": "Pepper Bell Bacterial Spot",
+    "Pepper,_bell___healthy": "Healthy Pepper Bell",
+    "Potato___Early_blight": "Potato Early Blight",
+    "Potato___Late_blight": "Potato Late Blight",
+    "Potato___healthy": "Healthy Potato",
+    "Tomato___Bacterial_spot": "Tomato Bacterial Spot",
+    "Tomato___Early_blight": "Tomato Early Blight",
+    "Tomato___Late_blight": "Tomato Late Blight",
+    "Tomato___Leaf_Mold": "Tomato Leaf Mold",
+    "Tomato___Septoria_leaf_spot": "Tomato Septoria Leaf Spot",
+    "Tomato___Spider_mites Two-spotted_spider_mite": "Tomato Spider Mites",
+    "Tomato___Target_Spot": "Tomato Target Spot",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus": "Tomato Yellow Leaf Curl Virus",
+    "Tomato___Tomato_mosaic_virus": "Tomato Mosaic Virus",
+    "Tomato___healthy": "Healthy Tomato",
+    "Apple___Apple_scab": "Apple Scab",
+    "Apple___Black_rot": "Apple Black Rot",
+    "Apple___Cedar_apple_rust": "Apple Cedar Rust",
+    "Apple___healthy": "Healthy Apple",
+    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": "Corn Gray Leaf Spot",
+    "Corn_(maize)___Common_rust_": "Corn Common Rust",
+    "Corn_(maize)___Northern_Leaf_Blight": "Corn Northern Leaf Blight",
+    "Corn_(maize)___healthy": "Healthy Corn",
+    "Grape___Black_rot": "Grape Black Rot",
+    "Grape___Esca_(Black_Measles)": "Grape Black Measles",
+    "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)": "Grape Leaf Blight",
+    "Grape___healthy": "Healthy Grape",
+    "Rice___Brown_Spot": "Rice Brown Spot",
+    "Rice___Healthy": "Healthy Rice",
+    "Rice___Leaf_Blast": "Rice Leaf Blast",
+    "Rice___Neck_Blast": "Rice Neck Blast",
+    "Strawberry___Leaf_scorch": "Strawberry Leaf Scorch",
+    "Strawberry___healthy": "Healthy Strawberry",
+    "Wheat___Brown_Rust": "Wheat Brown Rust",
+    "Wheat___Healthy": "Healthy Wheat",
+    "Wheat___Yellow_Rust": "Wheat Yellow Rust"
+}
+
+def is_plant_leaf(image_path):
+    """Check if the image appears to be a plant leaf using color analysis"""
+    try:
+        # Load image with OpenCV
+        img = cv2.imread(image_path)
+        if img is None:
+            return False
+            
+        # Convert to HSV color space
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        
+        # Define green color range (plant leaves)
+        lower_green = np.array([30, 40, 40])
+        upper_green = np.array([90, 255, 255])
+        
+        # Create mask for green areas
+        mask = cv2.inRange(hsv, lower_green, upper_green)
+        
+        # Calculate percentage of green pixels
+        green_percentage = np.count_nonzero(mask) / (img.shape[0] * img.shape[1])
+        
+        # Also check image entropy (texture complexity)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        entropy = np.log(np.var(gray) + 1e-10)
+
+        logger.info(f"Green percentage: {green_percentage:.2f}, Entropy: {entropy:.2f}")
+        
+        # Consider it a plant leaf if there's sufficient green OR sufficient texture
+        return green_percentage > 0.15 or entropy > 4.0
+
+    except Exception as e:
+        logger.error(f"Error in plant detection: {e}")
+        return False
+
 @app.route('/')
 def index():
+    status = "Model loaded successfully" if interpreter else "Model NOT loaded"
     return jsonify({
-        "message": "Welcome to the Crop Disease Detection API!",
+        "message": "Crop Disease Detection API (TFLite)",
+        "status": status,
         "endpoints": {
             "/predict": "POST method - Upload an image to get predictions"
         }
     })
 
-# Handle image upload and prediction
 @app.route('/predict', methods=['POST'])
 def predict():
+    if interpreter is None:
+        return jsonify({
+            'error': 'Model not loaded. Service unavailable.',
+            'details': 'The disease detection model failed to load during startup.'
+        }), 503
+
     if 'image' not in request.files:
         return jsonify({'error': 'No file part in the request'}), 400
 
@@ -67,12 +165,19 @@ def predict():
     try:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
         file.save(filepath)
+        
+        # First: Check if this looks like a plant leaf
+        if not is_plant_leaf(filepath):
+            return jsonify({
+                'error': 'The uploaded image does not appear to be a plant leaf. Please upload a clear image of a plant leaf.',
+                'details': 'Detection algorithm found insufficient plant characteristics'
+            }), 400
 
         # Preprocess the image
-        img = image.load_img(filepath, target_size=(224, 224))  # Resize the image based on model input size
+        img = image.load_img(filepath, target_size=(224, 224))
         img_array = image.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
-        img_array /= 255.0  # Normalize the image to [0, 1]
+        img_array /= 255.0
 
         # Get input and output tensors
         input_details = interpreter.get_input_details()
@@ -87,18 +192,36 @@ def predict():
         # Get the prediction
         output_data = interpreter.get_tensor(output_details[0]['index'])
         predicted_class = np.argmax(output_data, axis=1)
-        predicted_label = class_labels.get(predicted_class[0], 'Unknown Class')
+        confidence = np.max(output_data)
+        
+        # Enhanced confidence check
+        original_label = class_labels.get(predicted_class[0], 'Unknown Class')
+        
+        # Get readable name
+        readable_label = READABLE_NAMES.get(original_label, original_label)
+        
+        # For healthy plants, require higher confidence
+        is_healthy = "healthy" in original_label.lower()
+        confidence_threshold = HIGH_CONFIDENCE_THRESHOLD if is_healthy else CONFIDENCE_THRESHOLD
+        
+        if confidence < confidence_threshold:
+            return jsonify({
+                'error': f'Low confidence prediction ({confidence:.2f} < {confidence_threshold:.2f}). Please upload a clearer image of a plant leaf.',
+                'predicted': readable_label,
+                'confidence': float(confidence),
+                'threshold': confidence_threshold
+            }), 400
 
-        # Define the symptoms data
+        # Return prediction with symptoms
         symptoms_data = {
-            "Pepper__bell___Bacterial_spot": [
+            "Pepper,_bell___Bacterial_spot": [
                 "Dark, water-soaked spots on leaves.",
                 "Yellowing of leaf margins.",
                 "Small, dark, sunken lesions on fruits.",
                 "Defoliation and reduced yield.",
                 "Wilting and stunted growth."
             ],
-            "Pepper__bell___healthy": [
+            "Pepper,_bell___healthy": [
                 "No visible symptoms.",
                 "Bright green leaves.",
                 "Healthy fruit development.",
@@ -345,21 +468,20 @@ def predict():
             ]
         }
 
-        # Get symptoms for the predicted label
-        symptoms = symptoms_data.get(predicted_label, ["No symptoms available"])
+        symptoms = symptoms_data.get(original_label, ["No symptoms available"])
 
-        # Return the prediction and symptoms as JSON
         return jsonify({
-            'prediction': predicted_label,
-            'symptoms': symptoms
+            'prediction': readable_label,
+            'symptoms': symptoms,
+            'confidence': float(confidence),
+            'is_healthy': is_healthy
         })
 
     except Exception as e:
-        print(f"Error processing image: {e}")
+        logger.error(f"Error processing image: {e}")
         return jsonify({'error': 'Failed to process image'}), 500
 
-
 if __name__ == '__main__':
-    print("Starting the server...")
+    logger.info("Starting TFLite server...")
     port = int(os.environ.get("PORT", 8080))  
     app.run(host="0.0.0.0", port=port)
