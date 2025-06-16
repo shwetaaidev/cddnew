@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Path to your model
-model_path = '/Users/shweta/CDD/Crop Disease Recognition/extra/crop_disease_model_new.tflite'  
+model_path = 'crop_disease_model_new.tflite'  
 
 # Initialize interpreter as None
 interpreter = None
